@@ -25,7 +25,79 @@ import {
   Package,
   Menu,
   X,
+  Bell,
+  Compass,
 } from 'lucide-react'
+
+// Mobile bottom navigation items
+const mobileNavItems = [
+  { href: '/feed', icon: Home, label: 'Home' },
+  { href: '/explore', icon: Compass, label: 'Explore' },
+  { href: '/cart', icon: ShoppingCart, label: 'Cart', badgeKey: 'cart' },
+  { href: '/notifications', icon: Bell, label: 'Alerts', badgeKey: 'notifications' },
+  { href: '/profile/me', icon: User, label: 'Profile' },
+]
+
+// Mobile Bottom Navigation (internal sub-component)
+export function MobileBottomNav() {
+  const location = useLocation()
+  const { user, isAuthenticated } = useAuth()
+
+  const notificationCount = 2 // Demo value
+  const cartCount = 3 // Demo value
+
+  if (!isAuthenticated) return null
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t">
+      <div className="flex items-center justify-around h-16">
+        {mobileNavItems.map((item) => {
+          const Icon = item.icon
+          const isActive = location.pathname === item.href || 
+            (item.href === '/profile/me' && location.pathname.startsWith('/profile'))
+          
+          // Use user ID for profile link if available
+          const href = item.href === '/profile/me' && user 
+            ? `/profile/${user.id}` 
+            : item.href
+
+          // Get badge count
+          let badgeCount = 0
+          if (item.badgeKey === 'cart') badgeCount = cartCount
+          if (item.badgeKey === 'notifications') badgeCount = notificationCount
+
+          return (
+            <Link
+              key={item.href}
+              to={href}
+              className={cn(
+                'flex flex-col items-center justify-center w-full h-full gap-1 relative transition-colors',
+                isActive 
+                  ? 'text-primary' 
+                  : 'text-muted-foreground hover:text-primary'
+              )}
+            >
+              <div className="relative">
+                <Icon className="h-5 w-5" />
+                {badgeCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
+                    {badgeCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium">{item.label}</span>
+              {isActive && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+              )}
+            </Link>
+          )
+        })}
+      </div>
+      {/* Safe area for devices with home indicator */}
+      <div className="h-safe-area-inset-bottom bg-background" />
+    </nav>
+  )
+}
 
 export default function Navbar() {
   const { user, isAuthenticated, logout, role } = useAuth()
