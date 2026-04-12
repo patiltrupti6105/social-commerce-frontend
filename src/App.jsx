@@ -2,8 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 
 // Common Components
-import Navbar, { MobileBottomNav } from './components/common/Navbar'
+import Navbar from './components/common/Navbar'
 import Footer from './components/common/Footer'
+import MobileNav from './components/common/MobileNav'
 import PrivateRoute from './components/common/PrivateRoute'
 import RoleRoute from './components/common/RoleRoute'
 
@@ -60,7 +61,7 @@ function AppLayout({ children, showNav = true }) {
         {children}
       </main>
       {showNav && <Footer />}
-      {isAuthenticated && <MobileBottomNav />}
+      {isAuthenticated && <MobileNav />}
     </div>
   )
 }
