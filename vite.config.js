@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@/components/ui': path.resolve(__dirname, './components/ui'),
+      '@/hooks': path.resolve(__dirname, './hooks'),
+      '@/lib': path.resolve(__dirname, './lib'),
     },
   },
   server: {
