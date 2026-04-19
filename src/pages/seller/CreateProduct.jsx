@@ -1,450 +1,183 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../api/axiosConfig';
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { productApi } from '@/api/productApi'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Spinner } from '@/components/ui/spinner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ArrowLeft, Plus, X } from 'lucide-react'
 
-const CATEGORIES = [
-  'Electronics',
-  'Fashion',
-  'Home & Garden',
-  'Sports & Outdoors',
-  'Books',
-  'Toys & Games',
-  'Health & Beauty',
-  'Automotive',
-  'Other',
-];
-
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size'];
-const COLORS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Pink', 'Purple', 'Orange', 'Gray', 'Brown', 'Navy'];
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size']
+const COLORS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Pink', 'Purple', 'Orange', 'Gray']
 
 export default function CreateProduct() {
-  const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
+  const navigate = useNavigate()
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [categories, setCategories] = useState([])
+  const [formData, setFormData] = useState({ title: '', description: '', price: '', categoryId: '' })
+  const [imageUrls, setImageUrls] = useState([''])
+  const [variants, setVariants] = useState([{ size: '', color: '', stockQuantity: '', sku: '' }])
 
-  // Step 1: Basic info
-  const [basicInfo, setBasicInfo] = useState({
-    title: '',
-    description: '',
-    price: '',
-    category: '',
-  });
+  useEffect(() => {
+    productApi.getCategories().then(r => setCategories(r.data.data || r.data || [])).catch(() => {})
+  }, [])
 
-  // Step 2: Variants
-  const [variants, setVariants] = useState([
-    { id: 1, size: '', color: '', stock: '' }
-  ]);
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
 
-  // Step 3: Images
-  const [imageUrls, setImageUrls] = useState(['']);
+  const addVariant = () => setVariants(prev => [...prev, { size: '', color: '', stockQuantity: '', sku: '' }])
+  const removeVariant = (i) => setVariants(prev => prev.filter((_, idx) => idx !== i))
+  const updateVariant = (i, field, value) => setVariants(prev => prev.map((v, idx) => idx === i ? { ...v, [field]: value } : v))
 
-  const handleBasicInfoChange = (e) => {
-    const { name, value } = e.target;
-    setBasicInfo(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
-  };
+  const addImageUrl = () => setImageUrls(prev => [...prev, ''])
+  const removeImageUrl = (i) => setImageUrls(prev => prev.filter((_, idx) => idx !== i))
+  const updateImageUrl = (i, value) => setImageUrls(prev => prev.map((u, idx) => idx === i ? value : u))
 
-  const handleVariantChange = (id, field, value) => {
-    setVariants(variants.map(v =>
-      v.id === id ? { ...v, [field]: value } : v
-    ));
-  };
-
-  const addVariant = () => {
-    setVariants([...variants, { id: Date.now(), size: '', color: '', stock: '' }]);
-  };
-
-  const removeVariant = (id) => {
-    if (variants.length > 1) {
-      setVariants(variants.filter(v => v.id !== id));
-    }
-  };
-
-  const handleImageUrlChange = (index, value) => {
-    const newUrls = [...imageUrls];
-    newUrls[index] = value;
-    setImageUrls(newUrls);
-  };
-
-  const addImageUrl = () => {
-    if (imageUrls.length < 5) {
-      setImageUrls([...imageUrls, '']);
-    }
-  };
-
-  const removeImageUrl = (index) => {
-    if (imageUrls.length > 1) {
-      setImageUrls(imageUrls.filter((_, i) => i !== index));
-    }
-  };
-
-  const validateStep1 = () => {
-    const newErrors = {};
-    if (!basicInfo.title.trim()) newErrors.title = 'Title is required';
-    if (!basicInfo.description.trim()) newErrors.description = 'Description is required';
-    if (!basicInfo.price || parseFloat(basicInfo.price) <= 0) newErrors.price = 'Valid price is required';
-    if (!basicInfo.category) newErrors.category = 'Category is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateStep2 = () => {
-    const hasValidVariant = variants.some(v => v.size && v.color && v.stock);
-    if (!hasValidVariant) {
-      setErrors({ variants: 'At least one complete variant is required' });
-      return false;
-    }
-    return true;
-  };
-
-  const nextStep = () => {
-    if (currentStep === 1 && !validateStep1()) return;
-    if (currentStep === 2 && !validateStep2()) return;
-    setCurrentStep(prev => Math.min(prev + 1, 3));
-  };
-
-  const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
-  };
-
-  const handleSubmit = async () => {
-    setSaving(true);
-    const validImages = imageUrls.filter(url => url.trim());
-    const validVariants = variants.filter(v => v.size && v.color && v.stock);
-
-    const productData = {
-      name: basicInfo.title,
-      description: basicInfo.description,
-      price: parseFloat(basicInfo.price),
-      category: basicInfo.category,
-      variants: validVariants.map(v => ({
-        size: v.size,
-        color: v.color,
-        stock: parseInt(v.stock),
-      })),
-      images: validImages,
-      status: 'active',
-    };
-
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
     try {
-      await api.post('/seller/products', productData);
-      navigate('/seller/dashboard');
-    } catch (error) {
-      // For demo, navigate anyway
-      navigate('/seller/dashboard');
+      await productApi.createProduct({
+        title: formData.title,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
+        imageUrls: imageUrls.filter(Boolean),
+        variants: variants.filter(v => v.sku).map(v => ({
+          ...v,
+          stockQuantity: parseInt(v.stockQuantity) || 0,
+          priceOverride: v.priceOverride ? parseFloat(v.priceOverride) : null,
+        })),
+      })
+      navigate('/seller/products')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create product')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
-
-  const steps = [
-    { number: 1, title: 'Basic Info' },
-    { number: 2, title: 'Variants' },
-    { number: 3, title: 'Images' },
-  ];
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Create Product</h1>
-        <p className="text-muted-foreground mt-1">Add a new product to your store</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
+          <h1 className="text-2xl font-bold">Create Product</h1>
+        </div>
 
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {steps.map((step, index) => (
-            <div key={step.number} className="flex items-center">
-              <div className="flex items-center">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${
-                    currentStep >= step.number
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {currentStep > step.number ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    step.number
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>Basic Information</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Title *</Label>
+                <Input name="title" value={formData.title} onChange={handleChange} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea name="description" value={formData.description} onChange={handleChange} rows={4} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Price (₹) *</Label>
+                  <Input name="price" type="number" step="0.01" value={formData.price} onChange={handleChange} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select value={formData.categoryId} onValueChange={v => setFormData(p => ({ ...p, categoryId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Images (URLs)</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {imageUrls.map((url, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input placeholder="https://..." value={url} onChange={e => updateImageUrl(i, e.target.value)} />
+                  {imageUrls.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeImageUrl(i)}>
+                      <X className="h-4 w-4" />
+                    </Button>
                   )}
                 </div>
-                <span className={`ml-3 font-medium hidden sm:block ${
-                  currentStep >= step.number ? 'text-foreground' : 'text-muted-foreground'
-                }`}>
-                  {step.title}
-                </span>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addImageUrl}>
+                <Plus className="h-4 w-4 mr-2" />Add Image URL
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Variants</CardTitle>
+                <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                  <Plus className="h-4 w-4 mr-2" />Add Variant
+                </Button>
               </div>
-              {index < steps.length - 1 && (
-                <div className={`w-12 sm:w-24 h-1 mx-4 rounded ${
-                  currentStep > step.number ? 'bg-primary' : 'bg-muted'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 1: Basic Info */}
-      {currentStep === 1 && (
-        <div className="bg-card border border-border rounded-xl p-6 space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Product Title *
-            </label>
-            <input
-              type="text"
-              name="title"
-              value={basicInfo.title}
-              onChange={handleBasicInfoChange}
-              className={`w-full px-4 py-3 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                errors.title ? 'border-destructive' : 'border-input'
-              }`}
-              placeholder="Enter product title"
-            />
-            {errors.title && <p className="mt-1 text-sm text-destructive">{errors.title}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Description *
-            </label>
-            <textarea
-              name="description"
-              value={basicInfo.description}
-              onChange={handleBasicInfoChange}
-              rows={4}
-              className={`w-full px-4 py-3 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none ${
-                errors.description ? 'border-destructive' : 'border-input'
-              }`}
-              placeholder="Describe your product..."
-            />
-            {errors.description && <p className="mt-1 text-sm text-destructive">{errors.description}</p>}
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Price *
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <input
-                  type="number"
-                  name="price"
-                  value={basicInfo.price}
-                  onChange={handleBasicInfoChange}
-                  step="0.01"
-                  min="0"
-                  className={`w-full pl-8 pr-4 py-3 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                    errors.price ? 'border-destructive' : 'border-input'
-                  }`}
-                  placeholder="0.00"
-                />
-              </div>
-              {errors.price && <p className="mt-1 text-sm text-destructive">{errors.price}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Category *
-              </label>
-              <select
-                name="category"
-                value={basicInfo.category}
-                onChange={handleBasicInfoChange}
-                className={`w-full px-4 py-3 border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                  errors.category ? 'border-destructive' : 'border-input'
-                }`}
-              >
-                <option value="">Select a category</option>
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              {errors.category && <p className="mt-1 text-sm text-destructive">{errors.category}</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Variants */}
-      {currentStep === 2 && (
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Product Variants</h2>
-              <p className="text-sm text-muted-foreground">Add size, color, and stock for each variant</p>
-            </div>
-            <button
-              type="button"
-              onClick={addVariant}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Variant
-            </button>
-          </div>
-
-          {errors.variants && (
-            <p className="mb-4 text-sm text-destructive">{errors.variants}</p>
-          )}
-
-          <div className="space-y-4">
-            {variants.map((variant, index) => (
-              <div key={variant.id} className="flex flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-xl">
-                <span className="text-sm font-medium text-muted-foreground w-8">
-                  #{index + 1}
-                </span>
-
-                <select
-                  value={variant.size}
-                  onChange={(e) => handleVariantChange(variant.id, 'size', e.target.value)}
-                  className="flex-1 min-w-[120px] px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Size</option>
-                  {SIZES.map(size => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={variant.color}
-                  onChange={(e) => handleVariantChange(variant.id, 'color', e.target.value)}
-                  className="flex-1 min-w-[120px] px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Color</option>
-                  {COLORS.map(color => (
-                    <option key={color} value={color}>{color}</option>
-                  ))}
-                </select>
-
-                <input
-                  type="number"
-                  value={variant.stock}
-                  onChange={(e) => handleVariantChange(variant.id, 'stock', e.target.value)}
-                  placeholder="Stock Qty"
-                  min="0"
-                  className="w-24 px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-
-                {variants.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeVariant(variant.id)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Images */}
-      {currentStep === 3 && (
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-foreground">Product Images</h2>
-            <p className="text-sm text-muted-foreground">Paste image URLs for your product (up to 5 images)</p>
-          </div>
-
-          <div className="space-y-4">
-            {imageUrls.map((url, index) => (
-              <div key={index} className="flex gap-3">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => handleImageUrlChange(index, e.target.value)}
-                  className="flex-1 px-4 py-3 border border-input rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="https://example.com/image.jpg"
-                />
-                {imageUrls.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeImageUrl(index)}
-                    className="p-3 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {imageUrls.length < 5 && (
-              <button
-                type="button"
-                onClick={addImageUrl}
-                className="text-sm text-primary hover:underline"
-              >
-                + Add another image URL
-              </button>
-            )}
-          </div>
-
-          {/* Image Previews */}
-          {imageUrls.some(url => url.trim()) && (
-            <div className="mt-6">
-              <p className="text-sm font-medium text-foreground mb-3">Preview</p>
-              <div className="flex flex-wrap gap-4">
-                {imageUrls.filter(url => url.trim()).map((url, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={url}
-                      alt={`Preview ${index + 1}`}
-                      className="w-24 h-24 rounded-xl object-cover bg-muted border border-border"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {variants.map((v, i) => (
+                <div key={i} className="p-4 border rounded-lg space-y-3 relative">
+                  {variants.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => removeVariant(i)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">SKU *</Label>
+                      <Input placeholder="SKU-001" value={v.sku} onChange={e => updateVariant(i, 'sku', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Stock</Label>
+                      <Input type="number" value={v.stockQuantity} onChange={e => updateVariant(i, 'stockQuantity', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Size</Label>
+                      <Select value={v.size} onValueChange={val => updateVariant(i, 'size', val)}>
+                        <SelectTrigger><SelectValue placeholder="Select size" /></SelectTrigger>
+                        <SelectContent>{SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Color</Label>
+                      <Select value={v.color} onValueChange={val => updateVariant(i, 'color', val)}>
+                        <SelectTrigger><SelectValue placeholder="Select color" /></SelectTrigger>
+                        <SelectContent>{COLORS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between mt-8">
-        <button
-          type="button"
-          onClick={currentStep === 1 ? () => navigate('/seller/dashboard') : prevStep}
-          className="px-6 py-3 border border-input rounded-xl text-foreground hover:bg-muted transition-colors font-medium"
-        >
-          {currentStep === 1 ? 'Cancel' : 'Back'}
-        </button>
+          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-        {currentStep < 3 ? (
-          <button
-            type="button"
-            onClick={nextStep}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-medium"
-          >
-            Continue
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-medium disabled:opacity-50"
-          >
-            {saving ? 'Creating...' : 'Create Product'}
-          </button>
-        )}
+          <div className="flex gap-3">
+            <Button type="submit" disabled={saving} className="flex-1 bg-blue hover:bg-blue/90 text-blue-foreground">
+              {saving ? <><Spinner className="mr-2" />Saving...</> : 'Create Product (Draft)'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+          </div>
+        </form>
       </div>
     </div>
-  );
+  )
 }

@@ -51,6 +51,13 @@ import AdminProducts from './pages/admin/AdminProducts'
 import AdminPosts from './pages/admin/AdminPosts'
 import Analytics from './pages/admin/Analytics'
 
+import Wishlist from './pages/wishlist/Wishlist'
+import OrderConfirmation from './pages/orders/OrderConfirmation'
+
+import SellerProducts from './pages/seller/SellerProducts'
+import SellerProductForm from './pages/seller/SellerProductForm'
+import AdminDashboard from './pages/admin/AdminDashboard'
+
 function AppLayout({ children, showNav = true }) {
   const { isAuthenticated } = useAuth()
   
@@ -164,7 +171,23 @@ function App() {
           </AppLayout>
         </PrivateRoute>
       } />
-      
+
+      <Route path="/wishlist" element={
+        <PrivateRoute>
+          <AppLayout>
+            <Wishlist />
+          </AppLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/orders/:id/confirmation" element={
+        <PrivateRoute>
+          <AppLayout>
+            <OrderConfirmation />
+          </AppLayout>
+        </PrivateRoute>
+      } />
+
       <Route path="/profile/:id" element={
         <PrivateRoute>
           <AppLayout>
@@ -197,7 +220,21 @@ function App() {
           </AppLayout>
         </RoleRoute>
       } />
-      
+      <Route path="/seller/products" element={
+        <RoleRoute allowedRoles={['SELLER', 'ADMIN']}>
+          <AppLayout>
+            <SellerProducts />
+          </AppLayout>
+        </RoleRoute>
+      } />
+
+      <Route path="/seller/products/:id/edit" element={
+        <RoleRoute allowedRoles={['SELLER', 'ADMIN']}>
+          <AppLayout>
+            <SellerProductForm />
+          </AppLayout>
+        </RoleRoute>
+      } />
       <Route path="/seller/orders" element={
         <RoleRoute allowedRoles={['SELLER', 'ADMIN']}>
           <AppLayout>
@@ -211,7 +248,9 @@ function App() {
         <RoleRoute allowedRoles={['ADMIN']}>
           <AdminLayout />
         </RoleRoute>
+        
       }>
+        <Route path="dashboard" element={<AdminDashboard />} />
         <Route index element={<Navigate to="/admin/analytics" replace />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="products" element={<AdminProducts />} />

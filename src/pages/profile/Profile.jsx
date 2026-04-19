@@ -1,199 +1,154 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Settings, Grid3X3, Package, UserPlus, UserMinus } from 'lucide-react'
-
-// Demo posts
-const DEMO_POSTS = [
-  { id: '1', imageUrl: null, likes: 234, comments: 12 },
-  { id: '2', imageUrl: null, likes: 189, comments: 8 },
-  { id: '3', imageUrl: null, likes: 456, comments: 23 },
-  { id: '4', imageUrl: null, likes: 78, comments: 5 },
-  { id: '5', imageUrl: null, likes: 321, comments: 15 },
-  { id: '6', imageUrl: null, likes: 145, comments: 7 },
-]
-
-// Demo products for seller
-const DEMO_PRODUCTS = [
-  { id: '1', title: 'Premium Headphones', price: 199.99, imageUrl: null },
-  { id: '2', title: 'Wireless Mouse', price: 49.99, imageUrl: null },
-  { id: '3', title: 'Mechanical Keyboard', price: 149.99, imageUrl: null },
-  { id: '4', title: 'USB-C Hub', price: 39.99, imageUrl: null },
-]
+import { Spinner } from '@/components/ui/spinner'
+import { Settings, Grid3X3, Package, UserPlus, UserMinus, Heart, MessageCircle } from 'lucide-react'
+import { userApi } from '@/api/userApi'
+import { socialApi } from '@/api/socialApi'
+import { productApi } from '@/api/productApi'
+import { formatPrice } from '@/lib/utils'
 
 export default function Profile() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user: currentUser } = useAuth()
+  const [profile, setProfile] = useState(null)
+  const [posts, setPosts] = useState([])
+  const [products, setProducts] = useState([])
   const [isFollowing, setIsFollowing] = useState(false)
-  const [activeTab, setActiveTab] = useState('posts')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isFollowLoading, setIsFollowLoading] = useState(false)
 
-  // In a real app, fetch profile data based on id
-  const isOwnProfile = user?.id === id
-  const profileUser = isOwnProfile ? user : {
-    id,
-    name: 'Demo User',
-    email: 'demo@example.com',
-    bio: 'Passionate about quality products and great deals!',
-    role: 'SELLER',
-    avatar: null,
-    followers: 1234,
-    following: 567,
-    posts: 45,
-    storeName: 'Demo Store',
+  const isOwnProfile = currentUser?.id === id
+
+  useEffect(() => {
+    Promise.all([
+      userApi.getProfile(id),
+      socialApi.getUserPosts(id),
+    ]).then(([profileRes, postsRes]) => {
+      const p = profileRes.data.data
+      setProfile(p)
+      setIsFollowing(p.isFollowing || false)
+      setPosts(postsRes.data.data?.content || postsRes.data.data || [])
+      if (p.role === 'SELLER') {
+        productApi.getProducts({ sellerId: id }).then(r => setProducts(r.data.data?.content || [])).catch(() => {})
+      }
+    }).catch(() => {})
+    .finally(() => setIsLoading(false))
+  }, [id])
+
+  const handleFollow = async () => {
+    setIsFollowLoading(true)
+    try {
+      if (isFollowing) {
+        await userApi.unfollow(id)
+        setIsFollowing(false)
+        setProfile(prev => ({ ...prev, followersCount: (prev.followersCount || 1) - 1 }))
+      } else {
+        await userApi.follow(id)
+        setIsFollowing(true)
+        setProfile(prev => ({ ...prev, followersCount: (prev.followersCount || 0) + 1 }))
+      }
+    } catch (_) {} finally {
+      setIsFollowLoading(false)
+    }
   }
 
-  const isSeller = profileUser?.role === 'SELLER'
-
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing)
-  }
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Spinner className="h-8 w-8" /></div>
+  if (!profile) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">User not found</div>
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Profile Header */}
-      <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
-        {/* Avatar */}
-        <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-purple/20">
-          <AvatarImage src={profileUser?.avatar} alt={profileUser?.name} />
-          <AvatarFallback className="bg-purple text-purple-foreground text-4xl">
-            {profileUser?.name?.charAt(0).toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
-
-        {/* Info */}
-        <div className="flex-1">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
-            <h1 className="text-2xl font-bold">{profileUser?.name}</h1>
-            {isSeller && (
-              <Badge variant="secondary" className="w-fit">
-                <Package className="h-3 w-3 mr-1" />
-                Seller
-              </Badge>
-            )}
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-6 mb-4">
-            <div className="text-center">
-              <p className="text-xl font-bold">{profileUser?.posts || 0}</p>
-              <p className="text-sm text-muted-foreground">Posts</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold">{profileUser?.followers?.toLocaleString() || 0}</p>
-              <p className="text-sm text-muted-foreground">Followers</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold">{profileUser?.following?.toLocaleString() || 0}</p>
-              <p className="text-sm text-muted-foreground">Following</p>
-            </div>
-          </div>
-
-          {/* Bio */}
-          <p className="text-muted-foreground mb-4">{profileUser?.bio || 'No bio yet'}</p>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            {isOwnProfile ? (
-              <Button asChild variant="outline">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        <div className="flex items-start gap-8 mb-8">
+          <Avatar className="h-24 w-24 border-2 border-purple/20">
+            <AvatarImage src={profile.avatarUrl || profile.avatar} />
+            <AvatarFallback className="bg-purple text-purple-foreground text-2xl">{profile.name?.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <h1 className="text-xl font-bold">{profile.name}</h1>
+              {isOwnProfile ? (
                 <Link to="/profile/me">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Edit Profile
+                  <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />Edit Profile</Button>
                 </Link>
-              </Button>
-            ) : (
-              <>
-                <Button 
-                  onClick={handleFollow}
-                  className={isFollowing 
-                    ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' 
-                    : 'bg-purple hover:bg-purple/90 text-purple-foreground'
-                  }
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserMinus className="h-4 w-4 mr-2" />
-                      Unfollow
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Follow
-                    </>
-                  )}
+              ) : (
+                <Button size="sm" onClick={handleFollow} disabled={isFollowLoading}
+                  variant={isFollowing ? 'outline' : 'default'}
+                  className={!isFollowing ? 'bg-purple hover:bg-purple/90 text-purple-foreground' : ''}>
+                  {isFollowLoading ? <Spinner className="h-4 w-4" /> : isFollowing ? <><UserMinus className="h-4 w-4 mr-1" />Unfollow</> : <><UserPlus className="h-4 w-4 mr-1" />Follow</>}
                 </Button>
-                <Button variant="outline">Message</Button>
-              </>
-            )}
+              )}
+            </div>
+            {profile.storeName && <p className="text-sm text-muted-foreground mb-1">🏪 {profile.storeName}</p>}
+            {profile.bio && <p className="text-sm mb-3">{profile.bio}</p>}
+            <div className="flex gap-6 text-sm">
+              <span><strong>{profile.postCount || posts.length}</strong> posts</span>
+              <span><strong>{profile.followersCount || 0}</strong> followers</span>
+              <span><strong>{profile.followingCount || 0}</strong> following</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0">
-          <TabsTrigger 
-            value="posts" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple data-[state=active]:bg-transparent"
-          >
-            <Grid3X3 className="h-4 w-4 mr-2" />
-            Posts
-          </TabsTrigger>
-          {isSeller && (
-            <TabsTrigger 
-              value="products" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple data-[state=active]:bg-transparent"
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Products
-            </TabsTrigger>
-          )}
-        </TabsList>
+        <Tabs defaultValue="posts">
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="posts" className="flex-1"><Grid3X3 className="h-4 w-4 mr-2" />Posts</TabsTrigger>
+            {profile.role === 'SELLER' && <TabsTrigger value="products" className="flex-1"><Package className="h-4 w-4 mr-2" />Products</TabsTrigger>}
+          </TabsList>
 
-        {/* Posts Grid */}
-        <TabsContent value="posts" className="mt-6">
-          <div className="grid grid-cols-3 gap-1 md:gap-2">
-            {DEMO_POSTS.map((post) => (
-              <Link key={post.id} to={`/posts/${post.id}`}>
-                <div className="aspect-square relative group overflow-hidden rounded-sm">
-                  <div className="w-full h-full bg-gradient-to-br from-green/20 to-green/5 flex items-center justify-center">
-                    <Grid3X3 className="h-8 w-8 text-muted-foreground/30" />
-                  </div>
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white text-sm">
-                    <span>❤️ {post.likes}</span>
-                    <span>💬 {post.comments}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* Products Grid */}
-        {isSeller && (
-          <TabsContent value="products" className="mt-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {DEMO_PRODUCTS.map((product) => (
-                <Link key={product.id} to={`/products/${product.id}`}>
-                  <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="aspect-square bg-gradient-to-br from-blue/20 to-blue/5 flex items-center justify-center">
-                      <Package className="h-8 w-8 text-muted-foreground/30" />
-                    </div>
-                    <CardContent className="p-3">
-                      <h3 className="font-medium text-sm line-clamp-1">{product.title}</h3>
-                      <p className="text-blue font-bold">${product.price}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+          <TabsContent value="posts">
+            {posts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No posts yet</div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1">
+                {posts.map(post => {
+                  const img = post.mediaUrls?.[0] || post.images?.[0]
+                  return (
+                    <Link key={post.id} to={`/posts/${post.id}`} className="group relative aspect-square overflow-hidden bg-muted">
+                      {img ? <img src={img} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full bg-gradient-to-br from-purple/10 to-purple/5 flex items-center justify-center p-2"><p className="text-xs text-center text-muted-foreground line-clamp-3">{post.content}</p></div>}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="flex items-center gap-3 text-white text-sm font-semibold">
+                          <span className="flex items-center gap-1"><Heart className="h-4 w-4" />{post.likesCount || 0}</span>
+                          <span className="flex items-center gap-1"><MessageCircle className="h-4 w-4" />{post.commentsCount || 0}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
           </TabsContent>
-        )}
-      </Tabs>
+
+          {profile.role === 'SELLER' && (
+            <TabsContent value="products">
+              {products.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">No products listed</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {products.map(p => (
+                    <Link key={p.id} to={`/products/${p.id}`}>
+                      <Card className="hover:border-blue/30 transition-colors overflow-hidden">
+                        <div className="aspect-square bg-muted flex items-center justify-center">
+                          {p.primaryImageUrl ? <img src={p.primaryImageUrl} alt={p.title} className="w-full h-full object-cover" />
+                            : <Package className="h-8 w-8 text-muted-foreground/30" />}
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-medium line-clamp-1">{p.title}</p>
+                          <p className="text-sm text-blue font-semibold">{formatPrice(p.price)}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
     </div>
   )
 }

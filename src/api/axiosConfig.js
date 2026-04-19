@@ -1,45 +1,55 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.example.com'
-
 const axiosInstance = axios.create({
-  baseURL: API_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1',
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// Request interceptor to attach Bearer token
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('socialshop_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem('socialshop_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
-// Response interceptor for handling 401 errors
+let isRefreshing = false
+let failedQueue = []
+
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-
-      // In a real app, this would refresh the token
-      // For demo, we'll just logout
-      localStorage.removeItem('socialshop_token')
-      localStorage.removeItem('socialshop_user')
-      window.location.href = '/login'
+    const original = error.config
+    if (error.response?.status === 401 && !original._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        }).then(token => {
+          original.headers.Authorization = `Bearer ${token}`
+          return axiosInstance(original)
+        })
+      }
+      original._retry = true
+      isRefreshing = true
+      try {
+        const refreshToken = localStorage.getItem('socialshop_refresh_token')
+        const res = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'}/auth/refresh`,
+          { refreshToken }
+        )
+        const { accessToken } = res.data.data
+        localStorage.setItem('socialshop_token', accessToken)
+        failedQueue.forEach(p => p.resolve(accessToken))
+        failedQueue = []
+        original.headers.Authorization = `Bearer ${accessToken}`
+        return axiosInstance(original)
+      } catch (e) {
+        localStorage.clear()
+        window.location.href = '/login'
+        return Promise.reject(e)
+      } finally {
+        isRefreshing = false
+      }
     }
-
     return Promise.reject(error)
   }
 )

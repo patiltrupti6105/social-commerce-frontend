@@ -45,7 +45,7 @@ export default function Register() {
         navigate('/feed')
       }
     } catch (err) {
-      setError('Registration failed. Please try again.')
+      setError(err.response?.data?.message || 'Registration failed. Please try again.')
     } finally {
       setIsLoading(false)
     }

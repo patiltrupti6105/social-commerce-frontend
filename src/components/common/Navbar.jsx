@@ -13,6 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import NotificationBell from './NotificationBell'
+import { useCart } from '@/context/CartContext'
 import {
   Search,
   ShoppingCart,
@@ -46,7 +47,7 @@ export default function Navbar() {
     navigate('/login')
   }
 
-  const cartItemCount = 3 // Demo value
+  const { cartItemCount } = useCart()
 
   // Navigation items based on role
   const getNavItems = () => {
@@ -141,7 +142,7 @@ export default function Navbar() {
                     <span className="sr-only">Cart</span>
                   </Button>
                 </Link>
-
+                <Link to="/wishlist">Wishlist</Link>
                 {/* User Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
