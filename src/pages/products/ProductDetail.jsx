@@ -29,7 +29,7 @@ export default function ProductDetail() {
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [cartMessage, setCartMessage] = useState('')
-
+ 
   useEffect(() => {
     Promise.all([productApi.getProductById(id), productApi.getReviews(id)])
       .then(([pRes, rRes]) => {
@@ -41,13 +41,15 @@ export default function ProductDetail() {
       .catch(() => {})
       .finally(() => setIsLoading(false))
   }, [id])
-
+ 
   const handleAddToCart = async () => {
     if (!isAuthenticated) { navigate('/login'); return }
-    if (!selectedVariant) return
+    // Use first variant as fallback if none selected but variants exist
+    const variantToAdd = selectedVariant || product.variants?.[0]
+    if (!variantToAdd) { setCartMessage('No variant available'); return }
     setIsAddingToCart(true)
     try {
-      await addItem(selectedVariant.id, quantity)
+      await addItem(variantToAdd.id, quantity)
       setCartMessage('Added to cart!')
       setTimeout(() => setCartMessage(''), 3000)
     } catch (err) {
@@ -57,7 +59,7 @@ export default function ProductDetail() {
       setIsAddingToCart(false)
     }
   }
-
+ 
   const handleWishlist = async () => {
     if (!isAuthenticated) { navigate('/login'); return }
     try {
@@ -66,20 +68,21 @@ export default function ProductDetail() {
       setIsWishlisted(!isWishlisted)
     } catch (_) {}
   }
-
+ 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Spinner className="h-10 w-10" /></div>
   if (!product) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Product not found</div>
-
-  const images = product.images?.length > 0 ? product.images.map(i => i.imageUrl || i) : [null]
+ 
+  // Backend DTO returns imageUrls: string[] directly
+  const images = product.imageUrls?.length > 0 ? product.imageUrls : [null]
   const isOutOfStock = selectedVariant ? selectedVariant.stockQuantity <= 0 : false
-
+ 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
-
+ 
         <div className="grid lg:grid-cols-2 gap-10">
           {/* Images */}
           <div className="space-y-4">
@@ -105,7 +108,7 @@ export default function ProductDetail() {
               </div>
             )}
           </div>
-
+ 
           {/* Details */}
           <div className="space-y-5">
             {product.seller && (
@@ -114,7 +117,7 @@ export default function ProductDetail() {
               </Link>
             )}
             <h1 className="text-2xl font-bold">{product.title}</h1>
-
+ 
             <div className="flex items-center gap-2">
               <div className="flex">
                 {[1,2,3,4,5].map(s => (
@@ -123,14 +126,14 @@ export default function ProductDetail() {
               </div>
               <span className="text-sm text-muted-foreground">({product.reviewCount || 0} reviews)</span>
             </div>
-
+ 
             <div className="flex items-center gap-3">
               <span className="text-3xl font-bold text-blue">
                 {formatPrice(selectedVariant?.priceOverride || product.price)}
               </span>
               {isOutOfStock && <Badge variant="destructive">Out of Stock</Badge>}
             </div>
-
+ 
             {product.variants && product.variants.length > 0 && (
               <div className="space-y-3">
                 {/* Group by color */}
@@ -166,7 +169,7 @@ export default function ProductDetail() {
                 )}
               </div>
             )}
-
+ 
             <div className="flex items-center gap-3">
               <div className="flex items-center border rounded-lg">
                 <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={quantity <= 1}>
@@ -178,15 +181,15 @@ export default function ProductDetail() {
                 </Button>
               </div>
             </div>
-
+ 
             {cartMessage && (
               <Alert variant={cartMessage.includes('Failed') ? 'destructive' : 'default'}>
                 <AlertDescription>{cartMessage}</AlertDescription>
               </Alert>
             )}
-
+ 
             <div className="flex gap-3">
-              <Button onClick={handleAddToCart} disabled={isAddingToCart || isOutOfStock}
+              <Button onClick={handleAddToCart} disabled={isAddingToCart || isOutOfStock || (!selectedVariant && !product.variants?.[0])}
                 className="flex-1 bg-blue hover:bg-blue/90 text-blue-foreground" size="lg">
                 {isAddingToCart ? <Spinner className="mr-2" /> : <ShoppingCart className="h-5 w-5 mr-2" />}
                 {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
@@ -196,7 +199,7 @@ export default function ProductDetail() {
                 <Heart className={cn('h-5 w-5', isWishlisted ? 'fill-current' : '')} />
               </Button>
             </div>
-
+ 
             <div className="grid grid-cols-3 gap-3 pt-2">
               {[{ icon: Truck, label: 'Free Shipping' }, { icon: Shield, label: 'Secure Payment' }, { icon: RotateCcw, label: 'Easy Returns' }].map(({ icon: Icon, label }) => (
                 <div key={label} className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50 text-center">
@@ -205,7 +208,7 @@ export default function ProductDetail() {
                 </div>
               ))}
             </div>
-
+ 
             {product.description && (
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
@@ -214,7 +217,7 @@ export default function ProductDetail() {
             )}
           </div>
         </div>
-
+ 
         <ReviewSection
           productId={id}
           reviews={reviews}

@@ -18,8 +18,10 @@ function PostCard({ post, currentUserId, onLike }) {
   const [showCommentInput, setShowCommentInput] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [imgIndex, setImgIndex] = useState(0)
 
   const isLiked = post.likedByUserIds?.includes(String(currentUserId))
+  const images = post.mediaUrls || []
 
   const handleComment = async (e) => {
     e.preventDefault()
@@ -53,14 +55,33 @@ function PostCard({ post, currentUserId, onLike }) {
         </Button>
       </CardHeader>
 
-      {/* No mediaUrls in backend Post — show placeholder */}
-      <div className="relative aspect-square bg-gradient-to-br from-green/10 to-green/5 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-green/20 flex items-center justify-center mb-2">
-            <span className="text-green text-3xl font-bold">SS</span>
+      {/* Show post images if available, otherwise show placeholder */}
+      {images.length > 0 ? (
+        <div className="relative aspect-square bg-muted overflow-hidden">
+          <img src={images[imgIndex]} alt="Post" className="w-full h-full object-cover" />
+          {images.length > 1 && (
+            <>
+              <button onClick={() => setImgIndex(i => Math.max(0, i - 1))}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center disabled:opacity-20 text-lg"
+                disabled={imgIndex === 0}>‹</button>
+              <button onClick={() => setImgIndex(i => Math.min(images.length - 1, i + 1))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center disabled:opacity-20 text-lg"
+                disabled={imgIndex === images.length - 1}>›</button>
+              <span className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+                {imgIndex + 1}/{images.length}
+              </span>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="relative aspect-square bg-gradient-to-br from-green/10 to-green/5 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-20 h-20 mx-auto rounded-2xl bg-green/20 flex items-center justify-center mb-2">
+              <span className="text-green text-3xl font-bold">SS</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
@@ -87,6 +108,21 @@ function PostCard({ post, currentUserId, onLike }) {
           <Link to={`/posts/${post.id}`} className="text-sm text-muted-foreground hover:text-foreground mt-2 block">
             View all {post.commentsCount} comments
           </Link>
+        )}
+
+        {/* Tagged products */}
+        {post.taggedProductIds && post.taggedProductIds.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-green/10">
+            <p className="text-xs text-muted-foreground mb-2">🏷️ Tagged products</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {post.taggedProductIds.map(pid => (
+                <Link key={pid} to={`/products/${pid}`}
+                  className="flex-shrink-0 border border-green/20 rounded-lg px-3 py-1.5 text-xs hover:border-green hover:bg-green/5 transition-colors">
+                  View Product
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
 

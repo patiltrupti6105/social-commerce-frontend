@@ -47,17 +47,17 @@ export default function SellerProductForm() {
       const response = await api.get(`/products/seller/my/${id}`);
       const product = response.data;
       setFormData({
-        name: product.name,
+        name: product.title,
         description: product.description,
         price: product.price.toString(),
-        comparePrice: product.comparePrice?.toString() || '',
-        category: product.category,
-        stock: product.stock.toString(),
-        sku: product.sku || '',
-        images: product.images || [],
-        status: product.status,
+        comparePrice: '',
+        category: product.categoryId?.toString() || '',
+        stock: (product.variants?.[0]?.stockQuantity ?? 0).toString(),
+        sku: product.variants?.[0]?.sku || '',
+        images: product.imageUrls || [],
+        status: product.status?.toLowerCase() || 'draft',
       });
-      setImageUrls(product.images?.length ? product.images : ['']);
+      setImageUrls(product.imageUrls?.length ? product.imageUrls : ['']);
     } catch (error) {
       // Mock data for demo
       setFormData({

@@ -75,10 +75,15 @@ export default function PostDetail() {
 
         <Card className="overflow-hidden">
           <div className="grid md:grid-cols-2 gap-0">
-            {/* No mediaUrls in Post — placeholder */}
-            <div className="aspect-square bg-gradient-to-br from-green/10 to-green/5 flex items-center justify-center">
-              <span className="text-green text-6xl font-bold">SS</span>
-            </div>
+            {post.mediaUrls && post.mediaUrls.length > 0 ? (
+              <div className="aspect-square bg-muted overflow-hidden">
+                <img src={post.mediaUrls[0]} alt="Post" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="aspect-square bg-gradient-to-br from-green/10 to-green/5 flex items-center justify-center">
+                <span className="text-green text-6xl font-bold">SS</span>
+              </div>
+            )}
 
             <div className="flex flex-col h-full">
               <div className="flex items-center gap-3 p-4 border-b">
