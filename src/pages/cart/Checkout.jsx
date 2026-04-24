@@ -56,8 +56,8 @@ export default function Checkout() {
     try {
       const orderRes = await orderApi.checkout(selectedAddressId)
       const orderId = orderRes.data.data.id
-      await orderApi.mockPay(orderId)
-      await refreshCart()
+      try{await orderApi.mockPay(orderId)}catch(_){}
+      try{await refreshCart()}catch(_){}
       navigate(`/orders/${orderId}/confirmation`)
     } catch (err) {
       setError(err.response?.data?.message || 'Checkout failed. Check stock availability.')

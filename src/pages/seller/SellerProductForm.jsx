@@ -25,7 +25,7 @@ export default function SellerProductForm() {
     price: '',
     comparePrice: '',
     category: '',
-    stock: '',
+    stock: '1',
     sku: '',
     images: [],
     status: 'draft',
