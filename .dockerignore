@@ -1,0 +1,44 @@
+# ── Git ──────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ── IDE / Editor ─────────────────────────────────────────────
+.idea
+.vscode
+*.iml
+
+# ── Node modules ─────────────────────────────────────────────
+# Never send node_modules — the Dockerfile runs pnpm install
+# inside the container from scratch.
+node_modules/
+
+# ── Vite build output ────────────────────────────────────────
+# The multi-stage Dockerfile builds inside the container,
+# so local dist/ is never needed in the build context.
+dist/
+
+# ── Local environment files ──────────────────────────────────
+# These contain secrets and local overrides — never go in an image.
+.env
+.env.local
+.env.*.local
+
+# ── OS noise ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docker files themselves ───────────────────────────────────
+Dockerfile
+docker-compose*.yml
+nginx.conf
+
+# ── Docs ─────────────────────────────────────────────────────
+README.md
+*.md
+
+# ── pnpm store cache ─────────────────────────────────────────
+.pnpm-store/
+
+# ── Test / coverage output ───────────────────────────────────
+coverage/
